@@ -9,6 +9,7 @@ import (
 	"github.com/komish/preflight/certification"
 	"github.com/komish/preflight/certification/errors"
 	"github.com/komish/preflight/certification/runtime"
+	"github.com/komish/preflight/cli"
 	"github.com/sirupsen/logrus"
 )
 
@@ -19,11 +20,13 @@ type CheckEngine struct {
 	results        runtime.Results
 	localImagePath string
 	isDownloaded   bool
+	podman         cli.PodmanEngine
 }
 
 // ExecuteChecks runs all checks stored in the check engine.
 func (e *CheckEngine) ExecuteChecks(logger *logrus.Logger) {
 	logger.Info("target image: ", e.Image)
+	e.podman = PodmanCLIEngine{}
 	for _, check := range e.Checks {
 		e.results.TestedImage = e.Image
 		targetImage := e.Image
@@ -120,13 +123,14 @@ func (e *CheckEngine) ExtractContainerTar(tarball string, logger *logrus.Logger)
 }
 
 func (e *CheckEngine) GetContainerFromRegistry(containerLoc string, logger *logrus.Logger) (string, error) {
-	stdouterr, err := exec.Command("podman", "pull", containerLoc).CombinedOutput()
+	pullReport, err := e.podman.Pull(containerLoc, cli.ImagePullOptions{})
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", errors.ErrGetRemoteContainerFailed, err)
 	}
 	lines := strings.Split(string(stdouterr), "\n")
 
 	imgSig := lines[len(lines)-2]
+	_ = e.podman.Save(imgSig, []string{}, cli.ImageSaveOptions{})
 	stdouterr, err = exec.Command("podman", "save", containerLoc, "--output", imgSig+".tar").CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("%w: %s", errors.ErrSaveContainerFailed, err)
