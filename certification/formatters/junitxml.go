@@ -75,9 +75,9 @@ func junitXMLFormatter(r runtime.Results) ([]byte, error) {
 			Name:      result.Name(),
 			Time:      "0s",
 			Failure: &JUnitFailure{
-				Message:  "Failed",
+				Message:  result.Help().Message,
 				Type:     "",
-				Contents: fmt.Sprintf("%s: Suggested Fix: %s", result.Help().Message, result.Help().Suggestion),
+				Contents: fmt.Sprintf("Suggested Fix: %s", result.Help().Suggestion),
 			},
 		}
 		testsuite.TestCases = append(testsuite.TestCases, testCase)
